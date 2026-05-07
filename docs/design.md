@@ -23,7 +23,7 @@ The system layers on top of João's existing `phased-project-workflow` skill —
 
 ## 3. Phase order
 
-Ten phases. Phase 1 ("Planning & Demo") is the new gate that produces a clickable mockup before any real build.
+Eleven phases (was 10). A new **AI Security Audit** phase runs after hardening, before staging deploy.
 
 | # | Phase | Owner |
 |---|---|---|
@@ -35,10 +35,13 @@ Ten phases. Phase 1 ("Planning & Demo") is the new gate that produces a clickabl
 | K+2..M | Frontend Milestones | `frontend-builder` (re-invoked per milestone) |
 | M+1 | Frontend UI Testing | `frontend-tester` |
 | M+2 | Bug Fixing & Security | `hardener` |
-| M+3 | Staging Deploy | `deployer` (mode: `staging`) |
-| M+4 | Custom Domain, Observability & Production Deploy | `deployer` (mode: `prod`) |
+| M+3 | **AI Security Audit** | **`security-auditor`** (new) |
+| M+4 | Staging Deploy | `deployer` (mode: `staging`) |
+| M+5 | Custom Domain, Observability & Production Deploy | `deployer` (mode: `prod`) |
 
 **Demo gate (between Phase 1 and Phase 2):** the user must explicitly approve the clickable mockup before `planner` is dispatched. This is the most important non-deploy gate in the system — it prevents wasted scaffolding + planning effort on a misunderstood direction.
+
+**Security audit gate (after Phase M+3):** AI-powered comprehensive security review across 17 vulnerability categories (secrets, database access, auth, SSRF, XSS, SQL injection, etc.). All CRITICAL issues must be fixed before staging deploy.
 
 ## 4. PM responsibilities
 
@@ -62,7 +65,7 @@ Output: `docs/briefing.md` in the project repo. Append-only — revisions add a 
 
 ### 4.2 Per-phase orchestration
 
-For every phase 1..M+4, PM runs this loop:
+For every phase 1..M+5, PM runs this loop:
 
 1. **Propose phase** — state phase number, title, subagent assigned, draft acceptance criteria. Wait for user agreement.
 2. **Collect inputs** — list and collect every key/account/decision the subagent will need. Add to `.env`, `.env.example`, or `PLAN.md`.
@@ -82,7 +85,7 @@ For every phase 1..M+4, PM runs this loop:
 
 ## 5. Subagent roster
 
-Eight subagent files at `~/.claude/agents/<name>.md`. Each has a frontmatter declaring `description`, `tools`, and (where useful) `model`.
+Nine subagent files at `~/.claude/agents/<name>.md`. Each has a frontmatter declaring `description`, `tools`, and (where useful) `model`.
 
 | Subagent | Phase(s) | Tools (least-privilege + always Skill) |
 |---|---|---|
@@ -95,7 +98,8 @@ Eight subagent files at `~/.claude/agents/<name>.md`. Each has a frontmatter dec
 | `frontend-builder` | K+2..M (N invocations) | Read, Write, Edit, Bash, Skill, Glob, Grep |
 | `frontend-tester` | M+1 | Read, Bash, Skill |
 | `hardener` | M+2 | Read, Edit, Bash, Skill, Grep, Agent (for nested code-reviewer) |
-| `deployer` | M+3 + M+4 | Read, Edit, Bash, Skill, WebFetch |
+| `security-auditor` | M+3 | Read, Write, Edit, Bash, Skill, Grep, Agent |
+| `deployer` | M+4 + M+5 | Read, Edit, Bash, Skill, WebFetch |
 
 **Subagent contract — every worker:**
 
@@ -115,6 +119,7 @@ Eight subagent files at `~/.claude/agents/<name>.md`. Each has a frontmatter dec
 | `frontend-builder` | `frontend-design`, `test-driven-development` |
 | `frontend-tester` | `debugging`, browser-testing skills |
 | `hardener` | `debugging`, security-review skills, dispatch `code-reviewer` agent |
+| `security-auditor` | `security-review`, web security expertise |
 | `deployer` | deployment / observability skills as available |
 
 These mappings are documented in each subagent's instructions but **not hard-coded** — subagents check the live skill list before action so newly-added skills are picked up automatically.
@@ -245,8 +250,8 @@ PM parses this programmatically. Free-form replies break orchestration.
 3. PM writes `docs/briefing.md`, dispatches `demo-builder` for Phase 1.
 4. `demo-builder` returns; PM walks user through clickable mockup; user approves direction.
 5. PM dispatches `planner` for Phase 2; `planner` writes `PLAN.md` and scaffolds.
-6. PM cycles through backend → backend-test → frontend → frontend-test → hardening → staging deploy → prod deploy, gating on user sign-off between each phase.
-7. After Phase M+4, PM does a final summary and points the user to live URLs + observability dashboards.
+6. PM cycles through backend → backend-test → frontend → frontend-test → hardening → security audit → staging deploy → prod deploy, gating on user sign-off between each phase.
+7. After Phase M+5, PM does a final summary and points the user to live URLs + observability dashboards.
 
 ## 9. Failure modes and mitigations
 
