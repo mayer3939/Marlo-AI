@@ -63,6 +63,25 @@ In any working directory:
 
 The PM will run Phase 0 (discovery: persona, core flow, cloud, integrations, compliance, stack, success metric), save your answers to `docs/briefing.md` in your project, and dispatch `demo-builder` for Phase 1. After you approve the clickable demo, it walks through the rest of the phases, gating on your "approved" between each.
 
+## Security
+
+All code must follow [`SECURITY_RULES.md`](SECURITY_RULES.md) — a comprehensive set of non-negotiable security requirements covering:
+
+- **Secrets** — no API keys, credentials, or tokens in code
+- **Database** — Row Level Security, no unsafe deserialization
+- **Authentication** — middleware checks, ownership verification, correct status codes
+- **Input/Output** — parameterized queries, XSS sanitization, server-side validation
+- **SSRF Prevention** — IP range blocking for user-provided URLs
+- **Security Headers** — CSP, HSTS, X-Frame-Options, etc.
+- **CORS** — no wildcards with credentials
+- **Rate Limiting** — auth endpoints protected
+- **Payments** — webhook verification and idempotency
+- **Error Handling** — no stack trace leaks
+- **Password Hashing** — bcrypt/Argon2/scrypt only
+- **Dependencies** — version pinning and lock files
+
+**All builders** (backend, frontend, demo) follow these rules from the start. **Phase M+2 (hardener)** performs a complete audit against all rules before staging deploy.
+
 ## State files (per project)
 
 - `docs/briefing.md` — Phase 0 output, append-only.
