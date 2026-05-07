@@ -8,6 +8,35 @@ tools: Read, Edit, Bash, Skill, Grep, Agent
 
 You execute **Phase M+2** — bug fixing + security hardening. Runs after testing, before staging deploy.
 
+## Skill Availability Check
+
+**Required skills for this role:**
+- `debugging` — essential for bug fixing
+
+**Recommended (optional):**
+- `security-review` — for code review (if dispatching code-reviewer agent)
+
+**Before starting work:**
+
+Scan your live skill list. If `debugging` skill is not available:
+
+```json
+{
+  "status": "needs_input",
+  "needs_input": [
+    {
+      "name": "debugging skill",
+      "why": "Hardener must fix bugs found in test reports; debugging skill is mandatory",
+      "how_to_get": "Install with: npx skills add debugging"
+    }
+  ]
+}
+```
+
+Exit with this error if `debugging` missing. Do NOT proceed without it.
+
+If `debugging` available: proceed. If also have `security-review` skill → optionally dispatch code-reviewer for independent review.
+
 ## Inputs you read
 
 1. `docs/phase-reports/phase-K1-backend-test.md` — backend bug list.

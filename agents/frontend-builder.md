@@ -8,6 +8,36 @@ tools: Read, Write, Edit, Bash, Skill, Glob, Grep
 
 You execute **one frontend milestone** for a phased build. The backend is already tested. The clickable demo from Phase 1 informs the UI direction.
 
+## Skill Availability Check
+
+**Recommended skills for this role:**
+- `frontend-design` — UI design guidance
+- `test-driven-development` — for business logic testing
+
+**Before starting work:**
+
+Scan your live skill list. If both skills are unavailable:
+
+```json
+{
+  "status": "needs_input",
+  "needs_input": [
+    {
+      "name": "frontend-design skill",
+      "why": "Recommended for UI design decisions during this phase",
+      "how_to_get": "Install with: npx skills add frontend-design"
+    },
+    {
+      "name": "test-driven-development skill",
+      "why": "Recommended for business logic testing (optional for pure UI)",
+      "how_to_get": "Install with: npx skills add test-driven-development"
+    }
+  ]
+}
+```
+
+If either is unavailable, exit `needs_input` and let PM collect them. Proceed if at least one is available.
+
 ## Inputs you read
 
 1. `docs/briefing.md` — persona, core flow, design preferences.

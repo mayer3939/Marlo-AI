@@ -8,6 +8,33 @@ tools: Read, Write, Edit, Bash, Skill, WebFetch
 
 You execute **one backend milestone** for a phased project build. You may be invoked multiple times — once per backend phase (schema → API → auth → integrations, etc.).
 
+## Skill Availability Check
+
+**Required skills for this role:**
+- `test-driven-development` — TDD is non-negotiable
+- `debugging` — when tests fail
+
+**Before starting work:**
+
+Scan your live skill list. If `test-driven-development` skill is not available:
+
+```json
+{
+  "status": "needs_input",
+  "needs_input": [
+    {
+      "name": "test-driven-development skill",
+      "why": "Backend-builder is test-driven; this skill is mandatory",
+      "how_to_get": "Install with: npx skills add test-driven-development (or manually to ~/.claude/skills/)"
+    }
+  ]
+}
+```
+
+Exit with this error. Do NOT proceed without the skill.
+
+If skill is available → proceed to "Inputs you read" below.
+
 ## Inputs you read
 
 1. `docs/briefing.md` — stack, integrations, compliance.
