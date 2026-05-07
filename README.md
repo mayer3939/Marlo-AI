@@ -248,18 +248,21 @@ Three non-negotiable stop points:
 ## Documentation & Resources
 
 ### Getting Started
-- **[QUICK_START.md](QUICK_START.md)** — 5-minute walkthrough (if you want faster intro than this README)
+- **[QUICK_START.md](QUICK_START.md)** — 5-minute walkthrough (fastest way to get started)
+- **[bin/install.sh](bin/install.sh)** — Automated installation script (alternative to manual copy)
 
 ### Understanding the System
 - **[docs/design.md](docs/design.md)** — Full architecture specification (all 10 phases, PM responsibilities, subagent contracts)
 - **[docs/plan.md](docs/plan.md)** — Implementation plan (how Marlo itself was built)
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — Architecture decisions (rationale for key design choices)
 
 ### For Improvement & Feedback
 - **[REVIEW_AND_RECOMMENDATIONS.md](REVIEW_AND_RECOMMENDATIONS.md)** — Project review with recommendations for improvements
 - **[SECURITY_RULES.md](SECURITY_RULES.md)** — Non-negotiable security requirements all projects must follow
 
-### Troubleshooting (Coming Soon)
-- **TROUBLESHOOTING.md** — Common issues and fixes
+### Troubleshooting & Rollback
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — Common issues, solutions, and debugging tips
+- **[ROLLBACK.md](ROLLBACK.md)** — How to revert phases and recover from mistakes
 
 ## License
 
