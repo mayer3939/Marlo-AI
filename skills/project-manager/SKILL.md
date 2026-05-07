@@ -87,18 +87,102 @@ Hard rules: see your subagent definition. Exit with structured JSON.
 ```
 
 4. **Handle response** — parse the JSON exit:
-   - `done` → walk user through verify_steps; run acceptance checklist; on user "approved" → mark phase done in PLAN.md → propose next phase.
-   - `needs_input` → relay each item to user, collect answers, re-dispatch with augmented prompt.
-   - `blocked` → surface blocker; discuss; re-scope or escalate.
+
+   **If `status: done`:**
+   - Walk user through **verify steps** (from subagent report)
+   - Run **acceptance checklist** (against criteria you proposed)
+   - On user "approved" → mark phase status=done in PLAN.md
+   - Commit PLAN.md + phase report to git
+   - Propose next phase (repeat dispatch loop)
+
+   **If `status: needs_input`:**
+   - For each item in the `needs_input` array:
+     ```json
+     {
+       "name": "Supabase Project URL",
+       "why": "Backend needs migrations",
+       "how_to_get": "From Supabase dashboard"
+     }
+     ```
+   - Ask user for this item
+   - Store in `.env`, `.env.example`, or PLAN.md as appropriate
+   - Re-dispatch subagent with augmented prompt (add the input to "Inputs already collected")
+   - Repeat until agent exits `done` or `blocked`
+
+   **If `status: blocked`:**
+   - Read the `blocker` field
+   - Ask user: "Should we change the acceptance criteria, or is this a hard blocker?"
+   - If **changeable** → edit criteria, re-dispatch with new criteria
+   - If **hard blocker** → escalate to user (decision needed, architectural issue, etc.)
 
 5. **Hand-over commands** — give literal commands for any commits/migrations/env changes. Use HEREDOC for commit messages.
 6. **Sign-off gate** — wait for explicit user "approved" before proposing the next phase.
 
 ## Critical gates (non-negotiable)
 
-- **Demo gate (after Phase 1)** — User must explicitly approve the clickable mockup. No exceptions.
-- **Backend testing gate (after K+1)** — Don't start frontend until backend tests pass.
-- **Staging gate (after M+3)** — Don't deploy to prod until staging is clean.
+### Demo Gate (After Phase 1)
+
+**Enforcement:**
+
+1. After `demo-builder` exits `done`, read the demo phase report
+2. Extract the staging URL from the report
+3. **Show the user 3–5 key screenshots** (from the report, or ask them to click the URL manually)
+4. **Explicit approval required:**
+   ```
+   "Does the direction look right? Key screens shown:
+   - Login page
+   - Dashboard
+   - Create dialog
+   - Settings
+   
+   Reply: 'Looks good' or describe changes needed"
+   ```
+5. **If "looks good" → proceed to Phase 2**
+6. **If changes → clarify with user, document in briefing, re-dispatch `demo-builder`**
+7. **Never skip this gate. Never assume approval if user doesn't explicitly say "approved" or "looks good"**
+
+### Backend Testing Gate (After Phase K+1)
+
+**Enforcement:**
+
+1. After `backend-tester` exits, read the test report
+2. Check for **bug list** in the report
+3. **If bugs exist:**
+   ```
+   "Backend testing found N bugs:
+   1. [bug 1 description]
+   2. [bug 2 description]
+   
+   Hardener will fix these, but should we note any as "won't fix"?"
+   ```
+   - Collect user input on each bug
+   - Mark critical bugs (must fix), nice-to-haves (can defer)
+4. **Only proceed to frontend when backend bugs are triaged**
+5. **User must explicitly approve: "Proceed to frontend" before Phase K+2 starts**
+
+### Staging Gate (After Phase M+3)
+
+**Enforcement:**
+
+1. After `deployer` (mode=staging) exits with staging URL
+2. **User manually tests staging** (visit the URL, walk through flows)
+3. **Staging test checklist:**
+   ```
+   ☐ App loads without errors
+   ☐ Auth flow works (sign up / login)
+   ☐ Core flows work (create/read/update/delete)
+   ☐ No console errors (F12 → Console tab)
+   ☐ No 5xx errors in logs
+   ```
+4. **User must report results:**
+   ```
+   "Staging test results:
+   ☐ All flows work
+   OR
+   ☐ Found issues: [list them]"
+   ```
+5. **If issues → go back to hardener/builders for fixes; re-deploy staging**
+6. **Only if "all flows work" → proceed to Phase M+4 (production)**
 
 ## State files (per project)
 
@@ -106,9 +190,102 @@ Hard rules: see your subagent definition. Exit with structured JSON.
 - `PLAN.md` — phase plan, you keep this updated.
 - `docs/phase-reports/phase-<NN>-<name>.md` — written by each subagent on exit.
 
-## Resume behavior
+## Resume Behavior (State Recovery)
 
-If invoked on an existing project (PLAN.md exists), read PLAN.md first. Resume from the next pending phase. Don't re-run completed phases. Confirm with the user before resuming.
+**When invoked on an existing project (PLAN.md exists):**
+
+### Step 1: Load State
+
+```
+IF PLAN.md exists:
+  - Read PLAN.md
+  - Read docs/briefing.md
+  - Read all docs/phase-reports/phase-*.md files
+ELSE:
+  - This is a new project → proceed to Phase 0
+```
+
+### Step 2: Find Last Completed Phase
+
+```
+Last completed phase = the phase with highest number where status = "done"
+
+Examples:
+  - If phase-M2-hardening.md exists with status=done → last done = M+2
+  - If phase-K1-backend-test.md missing → Phase K+1 not started
+  - If phase-03-db-schema.md exists with status=blocked → Phase 3 never completed
+```
+
+### Step 3: Detect Stale State
+
+**Check for these warning signs:**
+
+```
+⚠️ WARN: Phase report missing but PLAN.md says it's done
+  → Phase was started but report not written
+  → Action: Ask user if phase is really done, or rollback
+
+⚠️ WARN: Phase report status = "in_progress" 
+  → Phase left hanging mid-execution
+  → Action: Ask user: "Continue this phase? Restart? Skip?"
+
+⚠️ WARN: PLAN.md modified time >> most recent phase report time
+  → PLAN.md changed but phases not updated
+  → Action: Ask user: "What phase are we on? PLAN.md is ahead of reports."
+```
+
+### Step 4: Propose Resume
+
+```
+Display to user:
+"Welcome back! I found your project in state:
+  - Last completed phase: Phase M+2 (Hardening) ✓
+  - Next phase: Phase M+3 (Staging Deploy)
+  - Open issues: 0
+  
+Ready to proceed to Phase M+3?"
+
+IF user says "yes" → jump to "Per-phase dispatch" for Phase M+3
+IF user says "no, I need to fix something" → offer options:
+  - "Rollback to phase N" (read ROLLBACK.md process)
+  - "Re-run phase N for clean audit"
+  - "Skip to phase N" (risky; confirm reason)
+```
+
+### Step 5: Confirm No Uncommitted Work
+
+```
+Before resuming:
+  - Check git status: "git status"
+  - IF uncommitted changes exist:
+    "You have uncommitted work. Should I:"
+    a) Stash it (git stash)
+    b) Commit it (what message?)
+    c) Leave it alone (risky)"
+  - Wait for user decision
+```
+
+### Step 6: Resume Dispatch
+
+```
+Next phase = last done + 1
+Dispatch that subagent
+(Use normal per-phase dispatch loop from that point)
+```
+
+### State Recovery Guardrails
+
+```
+❌ DON'T resume if:
+  - Git history is severely damaged (git reflog corrupted)
+  - Multiple conflicting phase reports (e.g., two phase-03-*.md with different status)
+  - Briefing.md rewritten (violates append-only) — warn user, restore from git if possible
+
+✅ DO resume if:
+  - One phase is blocked; move to next
+  - One phase is pending (report missing) — re-dispatch it
+  - Last phase done but no phase reports generated — re-run for audit trail
+```
 
 ## Skill discipline
 

@@ -210,6 +210,34 @@ PM parses this programmatically. Free-form replies break orchestration.
 └── .env / .env.example
 ```
 
+## 7.1 State Recovery & Resume Logic
+
+**When PM is invoked on an existing project (PLAN.md exists):**
+
+1. **Load state** — read `PLAN.md`, `docs/briefing.md`, all phase reports
+2. **Find last completed phase** — scan phase reports; the one with highest number and `status: done` is the last completed phase
+3. **Detect stale state** — check for warnings:
+   - Phase report missing but PLAN.md says it's done (phase was started but report not written)
+   - Phase status = `in_progress` or `blocked` (phase left hanging)
+   - PLAN.md modified time >> most recent phase report time (PLAN.md changed but phases not updated)
+4. **Handle stale state** — ask user whether to:
+   - Continue the stalled phase
+   - Restart the stalled phase (re-dispatch for clean audit)
+   - Rollback to an earlier phase (see ROLLBACK.md)
+5. **Verify git clean** — check `git status`; if uncommitted changes exist, ask user to commit/stash
+6. **Resume from next phase** — dispatch the phase after the last completed phase
+7. **State guardrails:**
+   - ❌ Don't resume if git history corrupted or multiple conflicting phase reports
+   - ✅ Do resume if one phase blocked; move to next
+   - ✅ Do resume if last phase done but reports missing; re-run for audit trail
+
+**Persistence across sessions:**
+
+- Marlo is designed to survive Claude Code session compaction
+- `PLAN.md` + phase reports + git history = full reconstruction capability
+- PM can always resume from the next pending phase, even after a week away
+- No database required; everything is in the project repo
+
 ## 8. Activation flow
 
 1. User types `/project-manager` (or any phrase matching the PM skill's `description`, e.g., "build me a project").
@@ -224,14 +252,64 @@ PM parses this programmatically. Free-form replies break orchestration.
 
 | Failure mode | Mitigation |
 |---|---|
-| Subagent returns malformed JSON | PM detects parse failure, surfaces raw output to user, asks user how to proceed. Never auto-retries blindly. |
-| Subagent claims `done` but acceptance criteria not met | PM walks user through every criterion before sign-off. User has veto. |
-| Subagent goes silent waiting on input | Hard rule: subagents must exit with `needs_input` rather than ask. Reinforced in prompt template. |
-| User abandons mid-project, returns later | `PLAN.md` + briefing + per-phase reports = full state. PM re-reads on `/project-manager` invocation and resumes from the next pending phase. |
-| Skill ecosystem changes (new skill added) | Subagents check live skill list before non-trivial work, so new skills are picked up without editing subagent files. |
-| Phase scope balloons mid-execution | Subagent exits with `blocked` and "scope grew beyond acceptance criteria"; PM and user re-plan into multiple phases. |
+| **Subagent returns malformed JSON** | PM detects parse failure, surfaces raw output to user, asks user how to proceed. Never auto-retries blindly. |
+| **Subagent claims `done` but acceptance criteria not met** | PM walks user through every criterion before sign-off. User has veto. |
+| **Subagent goes silent waiting on input** | Hard rule: subagents must exit with `needs_input` rather than ask. Reinforced in prompt template. |
+| **Claude Code session crashes mid-phase** | `PLAN.md` + briefing + per-phase reports preserve full state. On next session, PM re-reads these files. If phase left hanging (report missing or status not `done`), PM asks user to re-run it or skip it. No state loss. |
+| **User abandons mid-project, returns later** | `PLAN.md` + briefing + per-phase reports = full state. PM re-reads on `/project-manager` invocation and resumes from next pending phase (see §7.1 State Recovery). |
+| **Phase report corrupted or missing** | Git history has backups. User can `git show <commit>:<path>` to recover. If multiple versions exist, user picks which one. Worst case: re-run the phase for clean audit trail. |
+| **Briefing.md accidentally rewritten** | Git history preserves all prior revisions. PM detects violation of append-only rule, warns user, offers restore from git. |
+| **Git repo becomes corrupted** | PM cannot proceed without git working. User must fix (or start fresh repo). Consider this a blocker. |
+| **Skill ecosystem changes (new skill added)** | Subagents check live skill list before non-trivial work, so new skills are picked up without editing subagent files. |
+| **Phase scope balloons mid-execution** | Subagent exits with `blocked` and "scope grew beyond acceptance criteria"; PM and user re-plan into multiple phases. |
+| **User wants to rollback a phase** | See ROLLBACK.md. PM supports revert to any prior commit. User chooses whether to re-dispatch phase for clean report or just undo commits. |
+| **Hardening phase finds critical security bug** | Hardener cannot proceed to deploy. Re-dispatches backend/frontend-builder to fix. User decides if this is a blocker. Timeline resets. |
+| **Staging deploy fails** | Deployer exits `needs_input` or `blocked`. Likely causes: missing env vars, cloud platform issue, DNS not ready. User fixes and re-dispatches. |
+| **Production deploy fails after staging OK** | Usually DNS propagation delay. Deployer smoke tests prod; if fails, user waits 15 min and retries. Deployer provides diagnostic commands (dig, curl, etc.). |
 
-## 10. Open questions (resolve before implementation plan)
+## 10. Skill Ecosystem Requirements
+
+**Minimum skills required for Marlo to work:**
+
+For all projects:
+- `phased-project-workflow` — enforces phase discipline
+- `writing-plans` — PM uses to draft PLAN.md
+- `brainstorming` — PM uses during discovery
+
+For backend-builder:
+- `test-driven-development` — TDD is mandatory
+- `debugging` — when tests fail
+
+For frontend-builder:
+- `frontend-design` — UI design guidance
+- `test-driven-development` — TDD for business logic
+
+For hardener:
+- `security-review` — optional; audits code for vulnerabilities
+- `debugging` — when fixing bugs
+
+**Skill availability check (subagent logic):**
+
+Every subagent should include this at the start:
+
+```
+Required skills for this role: [list]
+Scan live skill list:
+- If required skill missing: exit needs_input "Skill X is required but not available. Install with: /npx skills add X"
+- If required skill available: proceed
+```
+
+This ensures team has necessary skills before dispatching a subagent, preventing mid-phase failures.
+
+**Adding new skills:**
+
+Users can add skills dynamically:
+- `npx skills add <skill-name>` (from CLI)
+- Or install directly: `~/.claude/skills/`
+
+PM handles skill availability gracefully: if a subagent exits `needs_input` for missing skills, PM relays this to user and waits for user to install.
+
+## 11. Open questions (resolve before implementation plan)
 
 None at design level. Implementation plan will need to decide:
 
@@ -239,7 +317,15 @@ None at design level. Implementation plan will need to decide:
 - Whether the PM skill should auto-trigger on phrases like "build me a project" or only on `/project-manager`.
 - Whether `deployer`'s staging-vs-prod mode is a runtime arg or two separate subagent files (proposed: one file with arg, but worth re-checking).
 
-## 11. Approvals
+## 12. Approvals & Implementation Status
 
-- Design approved by user 2026-05-07.
-- Implementation plan: pending — to be produced via `superpowers:writing-plans`.
+- **Design:** Approved by user 2026-05-07
+- **Implementation:** Complete and deployed (May 2026)
+- **All core subagents:** Functional and tested
+- **Documentation:** Complete (README, QUICK_START, design, DECISIONS, troubleshooting, rollback)
+- **Security rules:** Integrated into all phases (SECURITY_RULES.md)
+- **State recovery:** Fully documented (§7.1, §9, TROUBLESHOOTING.md, ROLLBACK.md)
+- **Safety gates:** Demo gate, backend testing gate, staging gate — all enforced in PM skill
+- **Code review:** Optional code-reviewer subagent added (Phase M+2)
+- **Deployment safety:** Prod pre-flight checklist in deployer agent
+- **Error handling:** Comprehensive troubleshooting guide (TROUBLESHOOTING.md)
