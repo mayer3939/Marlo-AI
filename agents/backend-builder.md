@@ -40,6 +40,7 @@ Likely relevant: `test-driven-development`, `debugging`, `writing-clearly-and-co
 
 ## Hard rules
 
+- **Follow [`SECURITY_RULES.md`](../SECURITY_RULES.md) from the start.** Build with security in mind — don't fix it later in hardening phase.
 - One milestone per dispatch. If acceptance criteria seem to span two milestones, exit `blocked` and ask PM to split the phase.
 - Need a key/account/decision? Exit `needs_input`.
 - No frontend code. If frontend would help, note in your report — frontend-builder handles it later.

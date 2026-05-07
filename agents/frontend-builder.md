@@ -36,6 +36,7 @@ Likely relevant: `frontend-design`, `test-driven-development`. Scan live skill l
 
 ## Hard rules
 
+- **Follow [`SECURITY_RULES.md`](../SECURITY_RULES.md).** Especially: never use `dangerouslySetInnerHTML` with user data, validate input server-side, never expose credentials/tokens in code.
 - Wire to the **real backend**. No mocks unless the test specifically demands it.
 - One milestone per dispatch.
 - Need a design decision/asset? Exit `needs_input`.
