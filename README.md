@@ -31,27 +31,155 @@ You ──► /project-manager (skill, runs in conversation)
 
 ## Install
 
-This is a Claude Code config drop-in. Copy the files into your `~/.claude/` tree:
+### Step 1: Clone Marlo AI
 
 ```bash
-git clone https://github.com/mayer3939/Marlo-AI.git
-cd Marlo-AI
+git clone https://github.com/mayer3939/Marlo-AI.git ~/Marlo-AI
+cd ~/Marlo-AI
+```
 
-# Skill
+### Step 2: Copy to Claude Code Configuration
+
+Copy the skill and agents to your Claude Code config directory:
+
+```bash
+# Create directories if they don't exist
 mkdir -p ~/.claude/skills/project-manager
-cp skills/project-manager/SKILL.md ~/.claude/skills/project-manager/
-
-# Agents
 mkdir -p ~/.claude/agents
-cp agents/*.md ~/.claude/agents/
-
-# Helper
 mkdir -p ~/.claude/bin
+
+# Copy files
+cp skills/project-manager/SKILL.md ~/.claude/skills/project-manager/
+cp agents/*.md ~/.claude/agents/
 cp bin/check-frontmatter.sh ~/.claude/bin/
 chmod +x ~/.claude/bin/check-frontmatter.sh
 ```
 
-Restart Claude Code if `/project-manager` doesn't appear in the slash-command list.
+### Step 3: Verify Installation
+
+```bash
+# Check if files were copied
+ls -la ~/.claude/skills/project-manager/SKILL.md
+ls -la ~/.claude/agents/ | grep -c "\.md"  # Should show 8
+
+# Validate frontmatter
+~/.claude/bin/check-frontmatter.sh ~/.claude/skills/project-manager/SKILL.md
+```
+
+### Step 4: Restart Claude Code
+
+- **Web/Desktop:** Close and reopen Claude Code
+- **CLI:** Run `/project-manager` in any working directory — it should appear in the slash-command list
+
+If `/project-manager` doesn't appear, restart your Claude Code session completely.
+
+---
+
+## Quick Start (5-Minute Example)
+
+### For New Projects
+
+1. **Create a project directory:**
+   ```bash
+   mkdir my-saas-app && cd my-saas-app
+   git init
+   ```
+
+2. **Start the project manager:**
+   ```
+   /project-manager
+   ```
+
+3. **Answer discovery questions** (Phase 0):
+   - Persona: Solo developer building a note-taking app
+   - Core flow: Login → Dashboard → Create/Edit/Delete notes
+   - Stack: Next.js + TypeScript + Supabase
+   - Integrations: None
+   - Compliance: GDPR (data deletion)
+   - Success metric: Deploy to production in 1 week
+
+4. **Approve the clickable demo** (Phase 1):
+   - PM dispatches `demo-builder`
+   - You get a local dev server with mock screens
+   - You approve: "Looks good!" to proceed
+
+5. **Watch the phases execute** (Phases 2–M+4):
+   - Planner: Creates `PLAN.md` with all phases
+   - Backend-builder: Builds API + DB schema (test-driven)
+   - Backend-tester: Verifies all endpoints work
+   - Frontend-builder: Wires real UI to backend
+   - Frontend-tester: Walks every user flow in browser
+   - Hardener: Fixes bugs, audits security, runs dep scan
+   - Deployer: Deploys to staging → you test → deploys to production
+
+6. **Your project is ready:**
+   - Real codebase on disk with all commits
+   - `docs/briefing.md` — your answers
+   - `PLAN.md` — phase-by-phase breakdown
+   - `docs/phase-reports/` — detailed work per phase
+   - App deployed to production
+
+**Total time:** ~3 hours for a simple CRUD app
+
+### For Existing Projects (Resume)
+
+1. **Navigate to your project root** (where `PLAN.md` exists)
+2. **Run in Claude Code:**
+   ```
+   /project-manager
+   ```
+3. **PM reads PLAN.md** and resumes from the next pending phase
+
+---
+
+## Implementation Status
+
+| Component | Status | Version | Notes |
+|-----------|--------|---------|-------|
+| PM Skill | ✅ Complete | 1.0 | Fully functional, tested |
+| Demo Builder | ✅ Complete | 1.0 | Builds clickable mockup |
+| Planner | ✅ Complete | 1.0 | Scaffolds repo + PLAN.md |
+| Backend Builder | ✅ Complete | 1.0 | TDD + security-first |
+| Backend Tester | ✅ Complete | 1.0 | End-to-end API verify |
+| Frontend Builder | ✅ Complete | 1.0 | Wires real backend |
+| Frontend Tester | ✅ Complete | 1.0 | Browser walkthrough |
+| Hardener | ✅ Complete | 1.0 | Bug fix + security audit |
+| Deployer | ✅ Complete | 1.0 | Staging + production |
+| SECURITY_RULES.md | ✅ Complete | 1.0 | Enforced all phases |
+
+### Known Limitations
+
+- **Requires Claude Code** — CLI, web, or IDE extension; not pure API
+- **Skill ecosystem** — needs `debugging`, `test-driven-development`, `writing-clearly-and-concisely` in your skill list
+- **Tested stacks:**
+  - ✅ Next.js 15+ + TypeScript + Supabase
+  - ✅ Python 3.11+ Flask + PostgreSQL
+  - ⚠️ Rails, Django, Vue — untested (feedback welcome)
+- **Cloud-first** — assumes cloud deployment (Vercel, Fly, Railway); local-only projects need adaptation
+- **Single user** — designed for one person or small team per project; no concurrent team workflows yet
+
+---
+
+## Project State Files
+
+After you run `/project-manager`, you'll have:
+
+- **`docs/briefing.md`** — Phase 0 discovery answers (append-only; never overwritten)
+- **`PLAN.md`** — Phased plan with acceptance criteria + phase status
+- **`docs/phase-reports/phase-NN-*.md`** — Detailed output from each phase
+- **`.git/`** — All work committed with clear messages
+
+Example directory after Phase 1:
+
+```
+my-saas-app/
+├── docs/
+│   ├── briefing.md              (your discovery answers)
+│   └── phase-reports/
+│       └── phase-01-demo.md     (demo builder output + preview URL)
+├── PLAN.md                      (PM-maintained phase plan)
+└── .git/                        (all commits tracked)
+```
 
 ## Use
 
@@ -117,10 +245,21 @@ Three non-negotiable stop points:
 - [Claude Code](https://claude.com/claude-code) — the CLI runtime
 - [superpowers](https://github.com/obra/superpowers) — `phased-project-workflow`, `writing-plans`, `brainstorming`, `subagent-driven-development`
 
-## Docs
+## Documentation & Resources
 
-- [`docs/design.md`](docs/design.md) — full architecture spec
-- [`docs/plan.md`](docs/plan.md) — implementation plan used to build this
+### Getting Started
+- **[QUICK_START.md](QUICK_START.md)** — 5-minute walkthrough (if you want faster intro than this README)
+
+### Understanding the System
+- **[docs/design.md](docs/design.md)** — Full architecture specification (all 10 phases, PM responsibilities, subagent contracts)
+- **[docs/plan.md](docs/plan.md)** — Implementation plan (how Marlo itself was built)
+
+### For Improvement & Feedback
+- **[REVIEW_AND_RECOMMENDATIONS.md](REVIEW_AND_RECOMMENDATIONS.md)** — Project review with recommendations for improvements
+- **[SECURITY_RULES.md](SECURITY_RULES.md)** — Non-negotiable security requirements all projects must follow
+
+### Troubleshooting (Coming Soon)
+- **TROUBLESHOOTING.md** — Common issues and fixes
 
 ## License
 
